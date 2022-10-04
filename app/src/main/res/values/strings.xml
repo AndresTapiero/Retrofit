@@ -1,0 +1,7 @@
+<resources>
+    <string name="app_name">Login</string>
+    <string name="main_login">Login</string>
+    <string name="main_register">Register</string>
+    <string name="main_error_server">Error en la petición</string>
+    <string name="main_error_response">Error en la respuesta</string>
+</resources>
