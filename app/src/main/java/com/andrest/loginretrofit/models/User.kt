@@ -1,4 +1,4 @@
-package com.andrest.loginretrofit
+package com.andrest.loginretrofit.models
 
 data class User(
     val id: Long,

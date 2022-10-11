@@ -8,7 +8,9 @@ import com.andrest.login.Constants
 import com.andrest.loginretrofit.databinding.ActivityMainBinding
 import com.andrest.loginretrofit.retrofit.LoginService
 import com.andrest.loginretrofit.retrofit.UserInfo
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import retrofit2.HttpException
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
@@ -30,61 +32,58 @@ class MainActivity : AppCompatActivity() {
         }
 
         mBinding.btnLogin.setOnClickListener {
-            login()
+            loginOrRegister()
         }
     }
 
-    private fun login() {
-
+    private fun loginOrRegister() {
         val email = mBinding.etEmail.text.toString().trim()
         val password = mBinding.etPassword.text.toString().trim()
-
         val retrofit = Retrofit.Builder()
             .baseUrl(Constants.BASE_URL)
             .addConverterFactory(GsonConverterFactory.create())
             .build()
         val service = retrofit.create(LoginService::class.java)
 
-        lifecycleScope.launch {
-            try {
-                val result = service.loginUser(UserInfo(email, password))
-                updateUI("${Constants.TOKEN_PROPERTY} : ${result}")
-            } catch (e: Exception) {
-                (e as? HttpException)?.let {
-                    when(it.code()) {
-                        400 -> {updateUI(getString(R.string.main_error_server))}
-                        else -> {updateUI(getString(R.string.main_error_response))}
-                    }
-                }
-            }
-        }
-
-/*        service.login(UserInfo(email, password)).enqueue(
-            object : Callback<LoginResponse>{
-                override fun onResponse(call: Call<LoginResponse>, response: Response<LoginResponse>) {
-                    when(response.code()) {
-                        200 -> {
-                            val result = response.body()
-                            updateUI("${Constants.TOKEN_PROPERTY} : ${result?.token}")
-                        }
-                        400 -> { updateUI(getString(R.string.main_error_server))}
-                        else -> {updateUI(getString(R.string.main_error_response))}
-                    }
-
-                }
-
-                override fun onFailure(call: Call<LoginResponse>, t: Throwable) {
-                    Log.e("Retrofit","Problemas con el servidor.")
-                    updateUI(getString(R.string.main_error_server))
-                }
-            }
-        )*/
-
-
+        if (mBinding.swType.isChecked) login(email, password, service) else register(email, password, service)
 
     }
 
-    private fun updateUI(result: String) {
+    private fun login(email: String, password: String, service: LoginService) {
+        lifecycleScope.launch(Dispatchers.IO) {
+            try {
+                val result = service.loginUser(UserInfo(email, password))
+                updateUI("${Constants.TOKEN_PROPERTY} : ${result.token}")
+            } catch (e: Exception) {
+                (e as? HttpException)?.let { checkError(e) }
+            }
+        }
+    }
+
+    private fun register(email: String, password: String, service: LoginService) {
+        lifecycleScope.launch {
+            try {
+                val result = service.registerUser(UserInfo(email, password))
+                updateUI(
+                    "${Constants.ID_PROPERTY}: ${result.id}, " +
+                            " ${Constants.TOKEN_PROPERTY} : ${result.token}"
+                )
+            } catch (e: Exception) {
+                (e as? HttpException)?.let { checkError(e) }
+            }
+        }
+    }
+
+    private suspend fun checkError(e: HttpException) = when (e.code()) {
+        400 -> {
+            updateUI(getString(R.string.main_error_server))
+        }
+        else -> {
+            updateUI(getString(R.string.main_error_response))
+        }
+    }
+
+    private suspend fun updateUI(result: String) = withContext(Dispatchers.Main) {
         mBinding.tvResult.visibility = View.VISIBLE
         mBinding.tvResult.text = result
     }
